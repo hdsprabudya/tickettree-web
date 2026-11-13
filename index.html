@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TicketTree Event System</title>
+    <style>
+        :root { 
+            --primary: #6366f1; /* Modern Indigo */
+            --primary-hover: #4f46e5;
+            --bg: #f8fafc; 
+            --text: #334155; 
+            --panel: #ffffff; 
+            --console: #0f172a; 
+            --success: #22c55e;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); max-width: 1100px; margin: 0 auto; padding: 2rem; }
+        h1 { text-align: center; color: var(--primary); margin-bottom: 2rem; font-size: 2.5rem; }
+        
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+        .card { background: var(--panel); padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-bottom: 1.5rem; border-top: 4px solid var(--primary); }
+        h3 { margin-top: 0; color: #1e293b; border-bottom: 2px solid #f1f5f9; padding-bottom: 0.5rem; }
+        
+        .input-group { margin-bottom: 1rem; display: flex; gap: 0.5rem; }
+        input { flex: 1; padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; font-size: 1rem; }
+        input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(99,102,241,0.2); }
+        
+        button { background: var(--primary); color: white; border: none; padding: 0.75rem 1.2rem; border-radius: 6px; cursor: pointer; font-weight: 600; transition: background 0.2s; }
+        button:hover { background: var(--primary-hover); }
+        .btn-danger { background: var(--danger); width: 100%; }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-warning { background: var(--warning); }
+        .btn-warning:hover { background: #d97706; }
+        
+        .badge { display: inline-block; padding: 0.25rem 0.5rem; border-radius: 9999px; font-size: 0.8rem; font-weight: bold; background: #e2e8f0; color: #475569; margin: 0 2px; }
+        
+        /* Visual Screen Outputs */
+        .output-screen { background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; height: 180px; overflow-y: auto; margin-bottom: 1.5rem;}
+        .list-item { display: flex; justify-content: space-between; padding: 0.5rem; border-bottom: 1px solid #e2e8f0; font-size: 0.95rem; align-items: center; }
+        .list-item:last-child { border-bottom: none; }
+        .id-tag { background: var(--primary); color: white; padding: 3px 8px; border-radius: 12px; font-size: 0.8rem; font-weight: bold; }
+        .wait-tag { background: var(--warning); color: white; padding: 3px 8px; border-radius: 12px; font-size: 0.8rem; font-weight: bold; }
+        
+        /* Mini Console */
+        .console-box { background: var(--console); color: var(--success); padding: 1rem; border-radius: 8px; font-family: monospace; height: 100px; overflow-y: auto; white-space: pre-wrap; font-size: 0.85rem; }
+    </style>
+</head>
+<body>
+    <h1>TicketTree Registration Desk</h1>
+    
+    <div class="card" style="text-align: center; max-width: 500px; margin: 0 auto 2rem auto;">
+        <h3>1. Setup Event</h3>
+        <div class="input-group">
+            <input type="number" id="capInput" placeholder="Max Capacity" min="1">
+            <button onclick="setCapacity()">Set Capacity</button>
+        </div>
+        <div>
+            Status: <span class="badge" id="regCount">0</span> Registered / 
+            <span class="badge" id="capDisplay">0</span> Capacity | 
+            <span class="badge" id="waitCount">0</span> on Waitlist
+        </div>
+    </div>
+
+    <div class="grid">
+        <!-- LEFT COLUMN: CONTROLS -->
+        <div>
+            <div class="card">
+                <h3>2. Registration & Waitlist</h3>
+                <div class="input-group">
+                    <input type="text" id="regName" placeholder="Attendee Name">
+                    <button onclick="register()">Register</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>3. Verify & Check-In</h3>
+                <div class="input-group">
+                    <input type="number" id="checkInId" placeholder="Ticket ID">
+                    <button onclick="verifyTicket()" style="background: #22c55e;">Check-In</button>
+                </div>
+                <button class="btn-danger" onclick="undoCheckIn()">Undo Last Check-In (Pop Stack)</button>
+            </div>
+
+            <div class="card">
+                <h3>4. Cancellations</h3>
+                <div class="input-group">
+                    <input type="number" id="cancelId" placeholder="Ticket ID to Cancel">
+                    <button class="btn-warning" onclick="cancelTicket()">Cancel Ticket</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN: VISUAL OUTPUTS -->
+        <div>
+            <div class="card">
+                <h3>Active Registrations (Linked List)</h3>
+                <div id="regScreen" class="output-screen">
+                    <div style="color: #94a3b8; text-align: center; margin-top: 2rem;">No attendees registered yet.</div>
+                </div>
+
+                <h3>Waitlist Order (Queue)</h3>
+                <div id="waitScreen" class="output-screen" style="height: 120px;">
+                    <div style="color: #94a3b8; text-align: center; margin-top: 1rem;">Waitlist is empty.</div>
+                </div>
+
+                <h3>Action Log</h3>
+                <div id="consoleLog" class="console-box">System Initialized. Waiting for capacity setup...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Data Structures
+        let capacity = 0;
+        let currentRegistered = 0;
+        let nextTicketID = 1; // Updated to start at 1
+        
+        let registeredList = []; // Doubly Linked List logic
+        let waitlistQueue = [];  // FIFO Queue
+        let checkInStack = [];   // LIFO Stack
+
+        function log(message) {
+            const con = document.getElementById('consoleLog');
+            con.innerHTML += '\n> ' + message;
+            con.scrollTop = con.scrollHeight;
+        }
+
+        // VISUAL SCREEN UPDATER
+        function updateScreens() {
+            document.getElementById('regCount').innerText = currentRegistered;
+            document.getElementById('capDisplay').innerText = capacity;
+            document.getElementById('waitCount').innerText = waitlistQueue.length;
+
+            // Update Registration Screen
+            const regScreen = document.getElementById('regScreen');
+            if (registeredList.length === 0) {
+                regScreen.innerHTML = '<div style="color: #94a3b8; text-align: center; margin-top: 2rem;">No attendees registered yet.</div>';
+            } else {
+                regScreen.innerHTML = registeredList.map(t => 
+                    `<div class="list-item">
+                        <span>👤 ${t.name}</span>
+                        <span class="id-tag">ID: ${t.id}</span>
+                    </div>`
+                ).join('');
+            }
+
+            // Update Waitlist Screen
+            const waitScreen = document.getElementById('waitScreen');
+            if (waitlistQueue.length === 0) {
+                waitScreen.innerHTML = '<div style="color: #94a3b8; text-align: center; margin-top: 1rem;">Waitlist is empty.</div>';
+            } else {
+                waitScreen.innerHTML = waitlistQueue.map((name, index) => 
+                    `<div class="list-item">
+                        <span>⏳ ${name}</span>
+                        <span class="wait-tag">Pos: ${index + 1}</span>
+                    </div>`
+                ).join('');
+            }
+        }
+
+        function setCapacity() {
+            const val = parseInt(document.getElementById('capInput').value);
+            if (val > 0) {
+                capacity = val;
+                log(`Capacity set to ${capacity}.`);
+                updateScreens();
+            }
+        }
+
+        function register() {
+            if (capacity === 0) return alert("Please set event capacity first!");
+            const nameInput = document.getElementById('regName');
+            const name = nameInput.value.trim();
+            if (!name) return;
+
+            if (currentRegistered < capacity) {
+                registeredList.push({ id: nextTicketID, name: name });
+                log(`Registered: ${name} (ID: ${nextTicketID})`);
+                nextTicketID++;
+                currentRegistered++;
+            } else {
+                waitlistQueue.push(name);
+                log(`Capacity full! ${name} added to waitlist.`);
+            }
+            nameInput.value = '';
+            updateScreens();
+        }
+
+        function cancelTicket() {
+            const id = parseInt(document.getElementById('cancelId').value);
+            const index = registeredList.findIndex(t => t.id === id);
+            
+            if (index !== -1) {
+                const canceledName = registeredList[index].name;
+                registeredList.splice(index, 1); 
+                currentRegistered--;
+                log(`Canceled: ${canceledName}'s ticket.`);
+
+                if (waitlistQueue.length > 0) {
+                    const admittedName = waitlistQueue.shift(); 
+                    registeredList.push({ id: nextTicketID, name: admittedName });
+                    currentRegistered++;
+                    log(`Waitlist Promotion: ${admittedName} gets ID: ${nextTicketID}`);
+                    nextTicketID++;
+                }
+            } else {
+                log(`Error: ID ${id} not found.`);
+            }
+            document.getElementById('cancelId').value = '';
+            updateScreens();
+        }
+
+        function verifyTicket() {
+            const id = parseInt(document.getElementById('checkInId').value);
+            const ticket = registeredList.find(t => t.id === id);
+            
+            if (ticket) {
+                log(`Checked-In: ${ticket.name}.`);
+                checkInStack.push(ticket); 
+            } else {
+                log(`Invalid or missing ID.`);
+            }
+            document.getElementById('checkInId').value = '';
+        }
+
+        function undoCheckIn() {
+            if (checkInStack.length === 0) {
+                log(`No check-ins to undo.`);
+            } else {
+                const reversed = checkInStack.pop(); 
+                log(`Reversed Check-In for: ${reversed.name}.`);
+            }
+        }
+    </script>
+</body>
+</html>
